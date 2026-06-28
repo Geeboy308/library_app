@@ -1,0 +1,24 @@
+allprojects {
+    repositories {
+         maven {
+            url "file:///C:/Users/HP/AppData/Local/Android/Sdk/extras/google/m2repository"
+        }
+         maven {
+            url "file:///C:/Users/HP/AppData/Local/Android/Sdk/extras/android/m2repository"
+        }
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
