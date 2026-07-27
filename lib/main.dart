@@ -669,7 +669,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${student['name']}'s Profile',
+        title: Text("${student['name']}'s Profile",
           style: const TextStyle(color: Colors.brown)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -810,7 +810,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: selectedCat,
+                  initialValue: selectedCat,
                   decoration: InputDecoration(
                     labelText: 'Category',
                     border: OutlineInputBorder(
