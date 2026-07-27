@@ -11,14 +11,15 @@ int totalBorrowed = 0;
 
 class Book {
   final String id;
-  final String title;
-  final String author;
+  String title;
+  String author;
   final String isbn;
   final String imageUrl;
   int availableCopies;
-  final int totalCopies;
+  int totalCopies;
   bool isBorrowed;
-  final String category;
+  String category;
+  String description;
 
   Book({
     required this.id,
@@ -30,6 +31,7 @@ class Book {
     required this.totalCopies,
     this.isBorrowed = false,
     this.category = 'General',
+    this.description = '',
   });
 }
 
@@ -667,7 +669,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${student['name']}\'s Profile',
+        title: Text('${student['name']}'s Profile',
           style: const TextStyle(color: Colors.brown)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -867,11 +869,74 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  void _returnBook(Book book) {
+    setState(() {
+      book.isBorrowed = false;
+      book.availableCopies++;
+      if (totalBorrowed > 0) {
+        totalBorrowed--;
+      }
+    });
+  }
+
+  void _openBooksPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminBooksPage(
+          onShowGenerateQR: (book) => _showGenerateQR(context, book),
+          onAddBook: () => _showAddBook(context),
+        ),
+      ),
+    );
+  }
+
+  void _openBorrowedPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminBorrowedBooksPage(
+          onReturnBook: (book) {
+            _returnBook(book);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('"${book.title}" returned!'),
+                backgroundColor: Colors.green),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openStudentsPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminStudentDirectoryPage(
+          studentsList: studentsList,
+          onShowStudentDetails: (student) =>
+            _showStudentDetails(context, student),
+        ),
+      ),
+    );
+  }
+
+  void _openAvailablePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminBooksPage(
+          showOnlyAvailable: true,
+          onShowGenerateQR: (book) => _showGenerateQR(context, book),
+          onAddBook: () => _showAddBook(context),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final borrowedBooks =
-      sharedBooks.where((b) => b.isBorrowed).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFFFFDF5),
       appBar: AppBar(
@@ -899,33 +964,53 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMetricCard(
-                  'Total Books',
-                  '${sharedBooks.length}',
-                  Colors.brown,
-                  Icons.book)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _openBooksPage,
+                    child: _buildMetricCard(
+                      'Books',
+                      '${sharedBooks.length}',
+                      Colors.brown,
+                      Icons.book),
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildMetricCard(
-                  'Borrowed',
-                  '$totalBorrowed',
-                  Colors.orange,
-                  Icons.swap_horiz)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _openBorrowedPage,
+                    child: _buildMetricCard(
+                      'Borrowed',
+                      '$totalBorrowed',
+                      Colors.orange,
+                      Icons.swap_horiz),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMetricCard(
-                  'Students',
-                  '${studentsList.length}',
-                  Colors.teal,
-                  Icons.people)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _openStudentsPage,
+                    child: _buildMetricCard(
+                      'Students',
+                      '${studentsList.length}',
+                      Colors.teal,
+                      Icons.people),
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildMetricCard(
-                  'Available',
-                  '${sharedBooks.where((b) => b.availableCopies > 0).length}',
-                  Colors.green,
-                  Icons.check_circle)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _openAvailablePage,
+                    child: _buildMetricCard(
+                      'Available',
+                      '${sharedBooks.where((b) => b.availableCopies > 0).length}',
+                      Colors.green,
+                      Icons.check_circle),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -951,158 +1036,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-            const Text('Book List & QR Codes',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.brown)),
-            const SizedBox(height: 8),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: sharedBooks.length,
-              itemBuilder: (context, index) {
-                final book = sharedBooks[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.brown.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(Icons.book,
-                        color: Colors.brown, size: 24),
-                    ),
-                    title: Text(book.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13)),
-                    subtitle: Text(
-                      '${book.author}\nAvailable: ${book.availableCopies}/${book.totalCopies}',
-                      style: const TextStyle(fontSize: 11)),
-                    isThreeLine: true,
-                    trailing: ElevatedButton.icon(
-                      onPressed: () =>
-                        _showGenerateQR(context, book),
-                      icon: const Icon(Icons.qr_code,
-                        color: Colors.white, size: 14),
-                      label: const Text('QR',
-                        style: TextStyle(
-                          color: Colors.white, fontSize: 12)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4)),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            const Text('Borrowed Books Log',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.brown)),
-            const SizedBox(height: 8),
-            borrowedBooks.isEmpty
-              ? Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text('No books borrowed yet',
-                      style: TextStyle(color: Colors.grey)),
-                  ),
-                )
-              : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: borrowedBooks.length,
-                  itemBuilder: (context, index) {
-                    final book = borrowedBooks[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: const Icon(Icons.book,
-                          color: Colors.brown),
-                        title: Text(book.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13)),
-                        subtitle: Text(book.author,
-                          style: const TextStyle(fontSize: 11)),
-                        trailing: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              book.isBorrowed = false;
-                              book.availableCopies++;
-                              if (totalBorrowed > 0) {
-                                totalBorrowed--;
-                              }
-                            });
-                            ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '"${book.title}" returned!'),
-                                backgroundColor: Colors.green),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4)),
-                          child: const Text('Return',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12)),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            const SizedBox(height: 24),
-            const Text('Student Directory',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.brown)),
-            const SizedBox(height: 8),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: studentsList.length,
-              itemBuilder: (context, index) {
-                final student = studentsList[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Colors.brown,
-                      child: Icon(Icons.person,
-                        color: Colors.white)),
-                    title: Text(student['name'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                      '@${student['username']} • ${student['status']}'),
-                    trailing: const Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14, color: Colors.brown),
-                    onTap: () =>
-                      _showStudentDetails(context, student),
-                  ),
-                );
-              },
             ),
           ],
         ),
@@ -1131,6 +1064,506 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class AdminBooksPage extends StatefulWidget {
+  final bool showOnlyAvailable;
+  final Function(Book book)? onShowGenerateQR;
+  final VoidCallback? onAddBook;
+
+  const AdminBooksPage({
+    super.key,
+    this.showOnlyAvailable = false,
+    this.onShowGenerateQR,
+    this.onAddBook,
+  });
+
+  @override
+  State<AdminBooksPage> createState() => _AdminBooksPageState();
+}
+
+class _AdminBooksPageState extends State<AdminBooksPage> {
+  void _openBookDetails(Book book) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookDetailsPage(
+          book: book,
+          onShowGenerateQR: widget.onShowGenerateQR,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final books = widget.showOnlyAvailable
+      ? sharedBooks.where((book) => book.availableCopies > 0).toList()
+      : sharedBooks;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFDF5),
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          widget.showOnlyAvailable ? 'Available Books' : 'Books',
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          if (widget.onAddBook != null)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: widget.onAddBook,
+            ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _BookListSection(
+          books: books,
+          onShowGenerateQR: widget.onShowGenerateQR,
+          onBookTap: _openBookDetails,
+        ),
+      ),
+    );
+  }
+}
+
+class BookDetailsPage extends StatefulWidget {
+  final Book book;
+  final Function(Book book)? onShowGenerateQR;
+
+  const BookDetailsPage({
+    super.key,
+    required this.book,
+    this.onShowGenerateQR,
+  });
+
+  @override
+  State<BookDetailsPage> createState() => _BookDetailsPageState();
+}
+
+class _BookDetailsPageState extends State<BookDetailsPage> {
+  void _showEditBook(BuildContext context) {
+    final titleController = TextEditingController(text: widget.book.title);
+    final authorController = TextEditingController(text: widget.book.author);
+    final categoryController = TextEditingController(text: widget.book.category);
+    final descriptionController = TextEditingController(text: widget.book.description);
+    final copiesController = TextEditingController(
+      text: widget.book.totalCopies.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Book',
+          style: TextStyle(color: Colors.brown)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: authorController,
+                decoration: const InputDecoration(labelText: 'Author'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: categoryController,
+                decoration: const InputDecoration(labelText: 'Category'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Description'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: copiesController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Total Copies'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel',
+              style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final parsedCopies = int.tryParse(copiesController.text);
+              setState(() {
+                widget.book.title = titleController.text;
+                widget.book.author = authorController.text;
+                widget.book.category = categoryController.text;
+                widget.book.description = descriptionController.text;
+                if (parsedCopies != null && parsedCopies > 0) {
+                  widget.book.totalCopies = parsedCopies;
+                  widget.book.availableCopies = widget.book.availableCopies > widget.book.totalCopies
+                    ? widget.book.totalCopies
+                    : widget.book.availableCopies;
+                }
+              });
+              Navigator.pop(dialogContext);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.brown),
+            child: const Text('Save',
+              style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final book = widget.book;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFDF5),
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(book.title,
+          style: const TextStyle(color: Colors.white)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 220,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.brown.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: book.imageUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      book.imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                : const Center(
+                    child: Icon(Icons.book, size: 72, color: Colors.brown),
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Text(book.title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown)),
+            const SizedBox(height: 8),
+            Text(book.author,
+              style: const TextStyle(fontSize: 16, color: Colors.grey)),
+            const SizedBox(height: 12),
+            Chip(
+              label: Text(book.category,
+                style: const TextStyle(fontSize: 12)),
+              backgroundColor: Colors.brown.shade50,
+            ),
+            const SizedBox(height: 12),
+            if (book.description.isNotEmpty)
+              Text(book.description,
+                style: const TextStyle(fontSize: 14, color: Colors.brown)),
+            if (book.description.isNotEmpty)
+              const SizedBox(height: 12),
+            Text('Copies: ${book.availableCopies}/${book.totalCopies}',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      if (widget.onShowGenerateQR != null) {
+                        widget.onShowGenerateQR!(book);
+                      }
+                    },
+                    icon: const Icon(Icons.qr_code, color: Colors.white),
+                    label: const Text('Borrow with QR',
+                      style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.brown,
+                      padding: const EdgeInsets.symmetric(vertical: 12)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showEditBook(context),
+                    icon: const Icon(Icons.edit, color: Colors.white),
+                    label: const Text('Edit Book',
+                      style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(vertical: 12)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AdminBorrowedBooksPage extends StatelessWidget {
+  final Function(Book book) onReturnBook;
+
+  const AdminBorrowedBooksPage({
+    super.key,
+    required this.onReturnBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borrowedBooks = sharedBooks.where((book) => book.isBorrowed).toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFDF5),
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Borrowed Books',
+          style: TextStyle(color: Colors.white)),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _BorrowedBooksSection(
+          borrowedBooks: borrowedBooks,
+          onReturnBook: onReturnBook,
+        ),
+      ),
+    );
+  }
+}
+
+class AdminStudentDirectoryPage extends StatelessWidget {
+  final List<Map<String, dynamic>> studentsList;
+  final Function(Map<String, dynamic> student) onShowStudentDetails;
+
+  const AdminStudentDirectoryPage({
+    super.key,
+    required this.studentsList,
+    required this.onShowStudentDetails,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFDF5),
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Student Directory',
+          style: TextStyle(color: Colors.white)),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _StudentDirectorySection(
+          studentsList: studentsList,
+          onShowStudentDetails: onShowStudentDetails,
+        ),
+      ),
+    );
+  }
+}
+
+class _BookListSection extends StatelessWidget {
+  final List<Book> books;
+  final Function(Book book)? onShowGenerateQR;
+  final Function(Book book)? onBookTap;
+
+  const _BookListSection({
+    required this.books,
+    this.onShowGenerateQR,
+    this.onBookTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (books.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: Text('No books available',
+            style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: books.length,
+      itemBuilder: (context, index) {
+        final book = books[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            onTap: () {
+              if (onBookTap != null) {
+                onBookTap!(book);
+              }
+            },
+            leading: Container(
+              width: 40,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.brown.shade100,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Icon(Icons.book,
+                color: Colors.brown, size: 24),
+            ),
+            title: Text(book.title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13)),
+            subtitle: Text(
+              '${book.author}\nAvailable: ${book.availableCopies}/${book.totalCopies}',
+              style: const TextStyle(fontSize: 11)),
+            isThreeLine: true,
+            trailing: onShowGenerateQR == null
+              ? null
+              : ElevatedButton.icon(
+                  onPressed: () => onShowGenerateQR!(book),
+                  icon: const Icon(Icons.qr_code,
+                    color: Colors.white, size: 14),
+                  label: const Text('QR',
+                    style: TextStyle(
+                      color: Colors.white, fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.brown,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4)),
+                ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BorrowedBooksSection extends StatelessWidget {
+  final List<Book> borrowedBooks;
+  final Function(Book book) onReturnBook;
+
+  const _BorrowedBooksSection({
+    required this.borrowedBooks,
+    required this.onReturnBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (borrowedBooks.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: Text('No books borrowed yet',
+            style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: borrowedBooks.length,
+      itemBuilder: (context, index) {
+        final book = borrowedBooks[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: const Icon(Icons.book, color: Colors.brown),
+            title: Text(book.title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13)),
+            subtitle: Text(book.author,
+              style: const TextStyle(fontSize: 11)),
+            trailing: ElevatedButton(
+              onPressed: () => onReturnBook(book),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 4)),
+              child: const Text('Return',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StudentDirectorySection extends StatelessWidget {
+  final List<Map<String, dynamic>> studentsList;
+  final Function(Map<String, dynamic> student) onShowStudentDetails;
+
+  const _StudentDirectorySection({
+    required this.studentsList,
+    required this.onShowStudentDetails,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: studentsList.length,
+      itemBuilder: (context, index) {
+        final student = studentsList[index];
+        return Card(
+          elevation: 2,
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Colors.brown,
+              child: Icon(Icons.person, color: Colors.white)),
+            title: Text(student['name'],
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('@${student['username']} • ${student['status']}'),
+            trailing: const Icon(Icons.arrow_forward_ios,
+              size: 14, color: Colors.brown),
+            onTap: () => onShowStudentDetails(student),
+          ),
+        );
+      },
     );
   }
 }
